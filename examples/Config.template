@@ -1,0 +1,23 @@
+<?php
+
+class DBConfig{
+    public static function get_config(){
+        return array(
+            'host'     => '###hostname###',
+            'username' => '###username###',
+            'password' => '###password###',
+            'dbname'   => '###dbname###',
+        );
+    }
+    
+    public static function get_files_dir($full=true){
+        $base_path="###base_path###"
+        $dir='##files_dir###';
+        if($full){
+            return $base_path.$dir;
+        }else{
+            return $dir;
+        }
+    }
+}
+?>
