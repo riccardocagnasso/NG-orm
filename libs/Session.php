@@ -15,6 +15,8 @@
 * NG ORM it's a tiny simple wanna be ORM implemented in PHP and ispired to python's SQLAlchemy
 */
 
+class CannotInsertException extends Exception{}
+
 class NGSession{
     /*
      *A session contains the connection to the db, tracks the dirty objects
@@ -69,7 +71,12 @@ class NGSession{
          */ 
         $object->set_session($this);
         $data=$object->to_db_array();
-        $this->db->insert($object->tablename, $data);
+
+        try{
+            $this->db->insert($object->tablename, $data);
+        }catch(Exception $e){
+            throw new CannotInsertException();
+        }
     }
 
     public function delete($object){

@@ -83,7 +83,7 @@ class NGObject{
     public $columns=array();
     public $relations=array();
 
-    private $data;
+    private $data=array();
     private $session=null;
 
     /*
@@ -97,7 +97,12 @@ class NGObject{
          *The constructor set the "data" array and assign a session if it's provided,
          *then it updates the saved primary key
          */
-        $this->data=$arr;
+        foreach($this->columns as $column){
+            if(isset($arr[$column])){
+                $this->data[$column]=$arr[$column];
+            }    
+        }
+
         $this->session=$session;
         $this->update_pk();
     }
