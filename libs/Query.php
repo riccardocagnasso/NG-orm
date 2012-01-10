@@ -12,7 +12,7 @@
 * PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
 * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-* NG ORM it's a tiny simple wanna be ORM implemented in PHP and ispired to python's SQLAlche
+* NG ORM it's a tiny simple wanna be ORM implemented in PHP and ispired to python's SQLAlchemy
 */
 class NGQuery{
     /*
@@ -34,7 +34,7 @@ class NGQuery{
 
     private $select;
     private $from;
-    private $where;
+    private $where=array();
     private $limit;
 
     public function __construct($db, $session, $object){
@@ -44,7 +44,7 @@ class NGQuery{
         $this->session=$session;
         $this->zend_query=$this->get_zend_query();
 
-        $this->select=new NGQuerySelect('*');
+        $this->select=new NGQuerySelect($this->session, '');
         $this->from=new NGQueryFrom($this->object->tablename);
     }
 
@@ -52,8 +52,9 @@ class NGQuery{
         /*
          *Evaluates a query and returns the result
          */
+        $query=$this->build_zend_query();
         $res=array();
-        foreach($this->db->fetchAll($this->zend_query) as $row){
+        foreach($this->db->fetchAll($query) as $row){
             $res[]=$this->object->from_db_array($row, $this->session);
         }
         return $res;
@@ -63,26 +64,28 @@ class NGQuery{
         /*
          *Evaluates a query that return one object and returns it
          */
+        $query=$this->build_zend_query();
         return $this->object->from_db_array(
-            $this->db->fetchRow($this->zend_query), $this->session);
+            $this->db->fetchRow($query), $this->session);
     }
 
-    public function count(){
+    public function count($count_clause='COUNT(*)'){
         /*
          *Return the count of the objects
-         *todo: make this useful
          */
-        return $this->db->fetchOne(
-            $this->db->select()
-                ->from($this->object->tablename, array('COUNT(*)'))
-        );
+        $old_from=$this->from;
+        $this->from=new NGQueryFrom($this->object->tablename, array($count_clause));
+        $query=$this->build_zend_query();
+        $this->from=$old_from;
+
+        return $this->db->fetchOne($query);
     }
 
     public function where($column, $value, $op='='){
         /*
          *Specify a where condition
          */
-        $this->zend_query=$this->zend_query->where("{$column}{$op}?", $value);
+        $this->where[]=new NGQueryWhere("{$column}{$op}?", $value);
 
         return $this;
     }
@@ -104,22 +107,92 @@ class NGQuery{
         }
         return $query;
     }
+
+    private function build_zend_query(){
+        $zquery=$this->select->process_element(null);
+        $zquery=$this->from->process_element($zquery);
+
+        foreach($this->where as $query_element){
+            $zquery=$query_element->process_element($zquery);
+        }
+
+        if(!empty($this->limit)){
+            $zquery=$this->limit->process_element($zquery);
+        }
+        return $zquery;
+    }
 }
 
-class NGQuerySelect{
+class NGQueryElement{
+    public function process_element($zquery){}
+}
+
+class NGQuerySelect extends NGQueryElement{
     public $select;
-    function __construct($select){
+    public $session;
+    function __construct($session, $select){
+        $this->session=$session;
         $this->select=$select;
     }
-}
 
-class NGQueryFrom{
-    public $table;
-    function __construct($table){
-        $this->table=$table;
+    public function process_element($zquery){
+        return $this->session->db->select();
     }
 }
 
-class NGQueryWhere{}
-class NGQueryLimit{}
+class NGQueryFrom extends NGQueryElement{
+    public $table;
+    public $columns;
+    function __construct($table, $columns=null){
+        $this->table=$table;
+        $this->columns=$columns;
+    }
+
+    public function process_element($zquery){
+        if(!empty($this->columns)){
+            return $zquery->from($this->table, $this->columns);
+        }else{
+            return $zquery->from($this->table);
+        }
+    }
+}
+
+class NGQueryWhere extends NGQueryElement{
+    public $condition;
+    public $parameter;
+    function __construct($condition, $parameter){
+        $this->condition=$condition;
+        $this->parameter=$parameter;
+    }
+
+    public function process_element($zquery){
+        return $zquery->where($this->condition, $this->parameter);
+    }
+}
+
+class NGQueryLimit extends NGQueryElement{
+    public $a;
+    public $b;
+    function __construct($a, $b=null){
+        $this->a=$a;
+        $this->b=$b;
+    }
+
+    public function process_element($zquery){
+        return $zquery->limit($a, $b);
+    }
+}
+
+class NGQueryDistinct extends NGQueryElement{
+    public function process_element($zquery){
+        return $zquery->distinct();
+    }
+}
+
+class NGQueryJoin extends NGQueryElement{
+    public $table;
+    public function process_element($zquery){
+        return $zquery->join($table);
+    }
+}
 ?>

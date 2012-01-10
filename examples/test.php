@@ -2,7 +2,12 @@
 require_once('User.php');
 
 echo '<pre>';
-$users=$GLOBALS['session']->query(User)->all();
+$query=$GLOBALS['session']->query(User);
+$users=$query->all();
+$count=$query->count();
+
+echo "Users are {$count}\n";
+echo "\n";
 foreach($users as $user){
     echo "User:\n";
     var_dump($user->username, $user->password);

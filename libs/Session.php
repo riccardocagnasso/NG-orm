@@ -12,7 +12,7 @@
 * PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
 * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-* NG ORM it's a tiny simple wanna be ORM implemented in PHP and ispired to python's SQLAlche
+* NG ORM it's a tiny simple wanna be ORM implemented in PHP and ispired to python's SQLAlchemy
 */
 
 class NGSession{
@@ -20,7 +20,7 @@ class NGSession{
      *A session contains the connection to the db, tracks the dirty objects
      *and let you build queries
      */
-    protected $db;
+    public $db;
     public $objects;
     public $relations;
     private $dirty=array();
