@@ -17,8 +17,8 @@
 
 //We use Zend_Db_Select for building queries
 require_once 'Zend/Db.php';
-require_once 'Query.php';
-require_once 'Session.php';
+require_once "{$library_path}/NGOrm/Query.php";
+require_once "{$library_path}/NGOrm/Session.php";
 
 class ColumnNotFound extends Exception{}
 class ObjectNotInSession extends Exception{}
@@ -69,6 +69,43 @@ class ForeignKey{
     }
 }
 
+abstract class NGColumn{
+    public $type;
+
+    public function to_sql_value($value){
+        return $value;
+    }
+
+    public function to_php_value($value){
+        return $value;
+    }
+}
+
+class NGString extends NGColumn{
+    public $type='string';
+}
+class NGInt extends NGColumn{
+    public $type='int';
+}
+class NGDate extends NGColumn{
+    public $type='date';
+    public $format;
+
+    public function __construct($format='yyyy-MM-dd'){
+        $this->format=$format;
+    }
+
+    public function to_sql_value($value){
+        return $value->toString($this->format);
+    }
+
+    public function to_php_value($value){
+        return new Zend_Date($value, $this->format);
+    }
+}
+
+
+
 class NGObject{
     /*
      *BaseObject is the object that you extend to make a permanent object.
@@ -92,14 +129,19 @@ class NGObject{
      */
     public $pk_value=array();
 
-    public function __construct($arr=array(), $session=null){
+    public function __construct($arr=array(), $session=null, $fromdb=false){
         /*
          *The constructor set the "data" array and assign a session if it's provided,
          *then it updates the saved primary key
          */
-        foreach($this->columns as $column){
-            if(isset($arr[$column])){
-                $this->data[$column]=$arr[$column];
+        foreach($this->columns as $column_name=>$column_type){
+            if(isset($arr[$column_name])){
+                if($fromdb){
+                    $this->data[$column_name]=$column_type->to_php_value($arr[$column_name]);
+                }else{
+                    $this->data[$column_name]=$arr[$column_name];
+                }
+
             }    
         }
 
@@ -116,7 +158,7 @@ class NGObject{
         if(!is_null($this->session)){
             $this->session->add_dirty($this);
         }
-        if(in_array($var, $this->columns)){
+        if(isset($this->columns[$var])){
             $this->data[$var]=$val;
         }else{
             throw new ColumnNotFound();
@@ -130,7 +172,7 @@ class NGObject{
          * from "data" and if you try to read a relation, data are get
          * from the database.
          */
-        if(in_array($var, $this->columns)){
+        if(isset($this->columns[$var])){
             return $this->data[$var];
         }else if(isset($this->relations[$var])){
             if(is_null($this->session)){
@@ -138,9 +180,9 @@ class NGObject{
             }else{
                 $relation=$this->relations[$var];
                 $query=$this->session->query($relation->class);
-                $data=$this->to_db_array();
+                #$data=$this->to_db_array();
                 foreach($relation->keys as $target_key=>$this_key){
-                    $query->where($target_key, $data[$this_key]);
+                    $query->where($target_key, $this->data[$this_key]);
                 }
                 if(get_class($relation)==ManyRelation){
                     return $query->all();
@@ -158,7 +200,14 @@ class NGObject{
         /*
          *Returns an array with columns data
          */
-        return $this->data;
+
+        $data=array();
+        foreach($this->columns as $column_name=>$column_type){
+            if(isset($this->data[$column_name])){
+                $data[$column_name]=$column_type->to_sql_value($this->data[$column_name]);
+            }    
+        }
+        return $data;
     }
     
     public function from_db_array($arr, $session=null){
@@ -169,9 +218,7 @@ class NGObject{
             return null;
         }else{
             $new_obj = clone $this;
-            $new_obj->data=$arr;
-            $new_obj->set_session($session);
-            $new_obj->update_pk();
+            $new_obj->__construct($arr, $session, true);
 
             return $new_obj; 
         }
@@ -191,6 +238,12 @@ class NGObject{
          */
         foreach($this->pk as $pk){
             $this->pk_value[$pk]=$this->data[$pk];
+        }
+    }
+
+    public function delete(){
+        if($this->session){
+            $this->session->delete($this);
         }
     }
 }

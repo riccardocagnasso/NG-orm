@@ -30,7 +30,6 @@ class NGQuery{
 
     private $db;
     private $session;
-    public $zend_query;
 
     private $select;
     private $from;
@@ -42,21 +41,28 @@ class NGQuery{
 
         $this->db=$db;
         $this->session=$session;
-        $this->zend_query=$this->get_zend_query();
 
         $this->select=new NGQuerySelect($this->session, '');
         $this->from=new NGQueryFrom($this->object->tablename);
     }
 
-    public function all(){
+    public function all($count=null, $offset=null){
         /*
          *Evaluates a query and returns the result
          */
+        $oldlimit=$this->limit;
+        if(!is_null($count)){
+            $this->limit=new NGQueryLimit($count, $offset);
+        }
+        
         $query=$this->build_zend_query();
         $res=array();
         foreach($this->db->fetchAll($query) as $row){
             $res[]=$this->object->from_db_array($row, $this->session);
         }
+
+        $this->limit=$oldlimit;
+
         return $res;
     }
 
@@ -85,7 +91,12 @@ class NGQuery{
         /*
          *Specify a where condition
          */
-        $this->where[]=new NGQueryWhere("{$column}{$op}?", $value);
+        if($op=="IN"){
+            $this->where[]=new NGQueryWhere("{$column} IN (?)", $value);
+        }else{
+            $this->where[]=new NGQueryWhere("{$column}{$op}?", $value);
+        }
+        
 
         return $this;
     }
@@ -171,15 +182,20 @@ class NGQueryWhere extends NGQueryElement{
 }
 
 class NGQueryLimit extends NGQueryElement{
-    public $a;
-    public $b;
-    function __construct($a, $b=null){
-        $this->a=$a;
-        $this->b=$b;
+    public $count;
+    public $offset;
+    function __construct($count, $offset=null){
+        $this->count=$count;
+        $this->offset=$offset;
     }
 
     public function process_element($zquery){
-        return $zquery->limit($a, $b);
+        if(!is_null($offset)){
+            return $zquery->limit($this->count, $this->offset); 
+        }else{
+            return $zquery->limit($this->count, 0);
+        }
+        
     }
 }
 

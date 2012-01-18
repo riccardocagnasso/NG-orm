@@ -86,9 +86,10 @@ class NGSession{
         $data=$object->to_db_array();
         $conditions=array();
         foreach($object->pk as $pk){
-            $conditions[]="{$pk}='$data[$pk]'";
+            $conditions[]=$this->db->quoteInto("{$pk}=?", $data[$pk]);
         }
         $this->db->delete($object->tablename, implode(" AND ", $conditions));
+        $object->set_session(null);
     }
 
     public function add_dirty($object){
