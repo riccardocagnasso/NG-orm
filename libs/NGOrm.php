@@ -17,8 +17,8 @@
 
 //We use Zend_Db_Select for building queries
 require_once 'Zend/Db.php';
-require_once "{$library_path}/NGOrm/Query.php";
-require_once "{$library_path}/NGOrm/Session.php";
+require_once "Query.php";
+require_once "Session.php";
 
 class ColumnNotFound extends Exception{}
 class ObjectNotInSession extends Exception{}
