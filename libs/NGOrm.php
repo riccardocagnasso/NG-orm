@@ -83,10 +83,31 @@ abstract class NGColumn{
 
 class NGString extends NGColumn{
     public $type='string';
+    private $encoding;
+
+    public function __construct($encoding='UTF-8'){
+        $this->encoding=$encoding;
+    }
+
+    public function to_sql_value($value){
+	if($this->encoding=='UTF-8' && mb_detect_encoding($value, array('UTF-8', 'ISO-8859-1'))=='ISO-8859-1'){
+	    $value=utf8_encode($value);
+	}
+    	return parent::to_sql_value($value);
+    }
+
+    public function from_sql_value($value){
+	if($this->encoding=='UTF-8' && mb_detect_encoding($value, array('UTF-8', 'ISO-8859-1'))=='ISO-8859-1'){
+	    $value=utf8_encode($value);
+        }
+        return parent::from_sql_value($value);
+    }
 }
+
 class NGInt extends NGColumn{
     public $type='int';
 }
+
 class NGDate extends NGColumn{
     public $type='date';
     public $format;
